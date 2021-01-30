@@ -67,12 +67,13 @@ echo "Creating dump of ${POSTGRES_DATABASE} database from ${POSTGRES_HOST}..."
 pg_dump $POSTGRES_HOST_OPTS $POSTGRES_DATABASE | gzip > dump.sql.gz
 
 echo "Uploading dump to $S3_BUCKET"
+timeStore="$(date  --date="${RETENTION}" +"%Y-%m-%dT%H:%M:00Z").sql.gz"
+cat dump.sql.gz | aws $AWS_ARGS s3 cp - s3://$S3_BUCKET/$S3_PREFIX/${POSTGRES_DATABASE}_$(date +"%Y-%m-%dT%H:%M:00Z").sql.gz || exit 2
 
-cat dump.sql.gz | aws $AWS_ARGS s3 cp - s3://$S3_BUCKET/$S3_PREFIX/${POSTGRES_DATABASE}_$(date +"%Y-%m-%dT%H:%M:%SZ").sql.gz || exit 2
 
 echo "SQL backup uploaded successfully"
 
-test=0
+test=0;
 delete_Date=$(date  --date="${RETENTION}" +"%d");
 
 if [ "${RETENTION}" != "**None**" ]; then
@@ -83,9 +84,8 @@ if [ "${RETENTION}" != "**None**" ]; then
     fi  
   done 
   if [ ${test} != 1 ]; then
-     aws $AWS_ARGS s3 rm s3://$S3_BUCKET/$S3_PREFIX/digiqc-staging_$(date  --date="${RETENTION}" +"%Y-%m-%d")*
-     echo "Delete successful"
+     test=0;
+     aws $AWS_ARGS s3 rm s3://$S3_BUCKET/$S3_PREFIX/${POSTGRES_DATABASE}_$timeStore
+     echo "Delete successful"     
   fi 
-else 
-  aws $AWS_ARGS s3 rm s3://$S3_BUCKET/$S3_PREFIX/digiqc-staging_$(date  --date="${RETENTION}" +"%Y-%m-%d")*
 fi
